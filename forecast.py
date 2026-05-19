@@ -72,570 +72,195 @@ def run_forecast(bundle, n):
     return result, future_labels
 
 
-# ── Nutrition Recommendation Engine ──────────────────────────────────────────
-def get_recommendations(forecast_df):
+# ── Month-by-Month Recommendation Engine ─────────────────────────────────────
+def get_status_and_recommendation(month_no, month_label, pct_improve,
+                                   bmi, weight, height,
+                                   dewormed, vitamins, immunize, vacc,
+                                   prev_improve):
     """
-    Generate detailed nutrition & health recommendations based on
-    forecasted 12-month average values using many if-else conditions.
+    Generate a status label and detailed recommendation for a single month
+    based on its forecasted indicator values using many if-else conditions.
     """
-    recs = []
 
-    # Compute 12-month averages and trends
-    avg_bmi        = forecast_df['Avg_BMI'].mean()
-    avg_weight     = forecast_df['Avg_Weight_kg'].mean()
-    avg_height     = forecast_df['Avg_Height_cm'].mean()
-    avg_dewormed   = forecast_df['Pct_Dewormed'].mean()
-    avg_vitamins   = forecast_df['Pct_Vitamins_Intake'].mean()
-    avg_immunize   = forecast_df['Pct_Immunization'].mean()
-    avg_vacc       = forecast_df['Pct_Vaccination'].mean()
-    avg_improve    = forecast_df['Pct_Improved_Next_Month'].mean()
+    change = pct_improve - prev_improve
 
-    trend_bmi      = forecast_df['Avg_BMI'].iloc[-1] - forecast_df['Avg_BMI'].iloc[0]
-    trend_weight   = forecast_df['Avg_Weight_kg'].iloc[-1] - forecast_df['Avg_Weight_kg'].iloc[0]
-    trend_improve  = forecast_df['Pct_Improved_Next_Month'].iloc[-1] - forecast_df['Pct_Improved_Next_Month'].iloc[0]
-    trend_dewormed = forecast_df['Pct_Dewormed'].iloc[-1] - forecast_df['Pct_Dewormed'].iloc[0]
-    trend_vitamins = forecast_df['Pct_Vitamins_Intake'].iloc[-1] - forecast_df['Pct_Vitamins_Intake'].iloc[0]
-    trend_immunize = forecast_df['Pct_Immunization'].iloc[-1] - forecast_df['Pct_Immunization'].iloc[0]
-    trend_vacc     = forecast_df['Pct_Vaccination'].iloc[-1] - forecast_df['Pct_Vaccination'].iloc[0]
-
-    # ── 1. BMI-based Nutrition Recommendations ────────────────────────────────
-    if avg_bmi < 12.0:
-        recs.append({
-            'category': '🔴 BMI — Severely Underweight',
-            'priority': 'CRITICAL',
-            'detail': (
-                "The forecasted average BMI is critically low (< 12.0). "
-                "Immediate intervention required. Provide therapeutic feeding with high-energy, "
-                "high-protein foods such as peanut butter, milk, eggs, and legumes. "
-                "Refer to a nutritionist or pediatrician immediately. "
-                "Implement Ready-to-Use Therapeutic Food (RUTF) if available."
-            )
-        })
-    elif avg_bmi < 13.5:
-        recs.append({
-            'category': '🔴 BMI — Underweight',
-            'priority': 'HIGH',
-            'detail': (
-                "The forecasted average BMI is below normal (12.0–13.5). "
-                "Children are at risk of undernutrition. "
-                "Increase caloric intake through energy-dense foods: sweet potato, banana, avocado, and full-fat dairy. "
-                "Provide 5–6 small meals per day instead of 3 large meals. "
-                "Consider supplementary feeding programs for the barangay."
-            )
-        })
-    elif avg_bmi < 14.5:
-        recs.append({
-            'category': '🟡 BMI — Slightly Below Normal',
-            'priority': 'MODERATE',
-            'detail': (
-                "The forecasted average BMI is slightly below the healthy range (13.5–14.5). "
-                "Encourage balanced meals with adequate protein and healthy fats. "
-                "Include fish, chicken, mongo, and vegetables in daily diet. "
-                "Monitor weight monthly and track growth using WHO growth charts."
-            )
-        })
-    elif avg_bmi <= 17.0:
-        recs.append({
-            'category': '🟢 BMI — Normal',
-            'priority': 'LOW',
-            'detail': (
-                "The forecasted average BMI is within the healthy range (14.5–17.0). "
-                "Maintain current dietary practices. "
-                "Continue serving diverse meals with rice, fish, vegetables, and fruits. "
-                "Ensure children drink 6–8 glasses of water daily."
-            )
-        })
-    elif avg_bmi <= 19.0:
-        recs.append({
-            'category': '🟡 BMI — Slightly Overweight',
-            'priority': 'MODERATE',
-            'detail': (
-                "The forecasted average BMI is slightly above normal (17.0–19.0). "
-                "Reduce intake of sugary snacks, processed foods, and sweetened beverages. "
-                "Encourage outdoor physical activities for at least 60 minutes daily. "
-                "Serve more vegetables and fruits; reduce rice and fried food portions."
-            )
-        })
+    # ── Determine Status ──────────────────────────────────────────────────────
+    if pct_improve >= 95.0:
+        if change >= 1.0:
+            status = "🟢 Excellent ↑"
+        elif change >= 0:
+            status = "🟢 Excellent →"
+        else:
+            status = "🟢 Excellent ↓"
+    elif pct_improve >= 85.0:
+        if change >= 1.0:
+            status = "🟢 Good ↑"
+        elif change >= 0:
+            status = "🟢 Good →"
+        else:
+            status = "🟡 Good ↓"
+    elif pct_improve >= 75.0:
+        if change >= 1.0:
+            status = "🟡 Moderate ↑"
+        elif change >= 0:
+            status = "🟡 Moderate →"
+        else:
+            status = "🟡 Moderate ↓"
+    elif pct_improve >= 60.0:
+        if change >= 0:
+            status = "🟠 Below Target ↑"
+        else:
+            status = "🟠 Below Target ↓"
+    elif pct_improve >= 45.0:
+        if change >= 0:
+            status = "🔴 Poor ↑"
+        else:
+            status = "🔴 Poor ↓"
     else:
-        recs.append({
-            'category': '🔴 BMI — Obese / Severely Overweight',
-            'priority': 'HIGH',
-            'detail': (
-                "The forecasted average BMI exceeds 19.0, indicating risk of childhood obesity. "
-                "Strictly limit junk food, softdrinks, and high-sugar snacks. "
-                "Introduce structured physical activity programs in school and community. "
-                "Consult a pediatric nutritionist for a personalized meal plan."
-            )
-        })
+        status = "🔴 Critical ↓"
 
-    # ── 2. BMI Trend ──────────────────────────────────────────────────────────
-    if trend_bmi > 1.5:
-        recs.append({
-            'category': '📈 BMI Trend — Rapidly Increasing',
-            'priority': 'MODERATE',
-            'detail': (
-                "BMI is forecasted to rise significantly over the next 12 months (Δ > 1.5). "
-                "Monitor for signs of overnutrition or rapid weight gain. "
-                "Audit snack and meal content in feeding programs — reduce high-calorie items."
-            )
-        })
-    elif trend_bmi > 0.5:
-        recs.append({
-            'category': '📈 BMI Trend — Gradually Increasing',
-            'priority': 'LOW',
-            'detail': (
-                "BMI shows a gradual upward trend (Δ 0.5–1.5). "
-                "This is acceptable if within normal range. "
-                "Continue regular monitoring to ensure it stays within healthy limits."
-            )
-        })
-    elif trend_bmi < -1.0:
-        recs.append({
-            'category': '📉 BMI Trend — Declining',
-            'priority': 'HIGH',
-            'detail': (
-                "BMI is forecasted to decline significantly (Δ < -1.0). "
-                "This may indicate worsening nutritional status. "
-                "Immediately review feeding program meal plans and increase caloric density. "
-                "Investigate possible causes: illness, food insecurity, or parasitic infection."
-            )
-        })
+    # ── Build Recommendation ──────────────────────────────────────────────────
+    rec_parts = []
 
-    # ── 3. Weight Recommendations ─────────────────────────────────────────────
-    if avg_weight < 10.0:
-        recs.append({
-            'category': '🔴 Weight — Critically Low',
-            'priority': 'CRITICAL',
-            'detail': (
-                "Forecasted average weight is critically low (< 10 kg) for children aged 0–6. "
-                "Provide high-protein therapeutic foods immediately. "
-                "Coordinate with the barangay health center for supplemental feeding. "
-                "Prioritize children under 2 years for early intervention."
-            )
-        })
-    elif avg_weight < 12.0:
-        recs.append({
-            'category': '🟡 Weight — Below Average',
-            'priority': 'MODERATE',
-            'detail': (
-                "Forecasted average weight is below expected range (10–12 kg). "
-                "Enrich meals with iron-rich foods such as liver, dark green leafy vegetables, and fortified cereals. "
-                "Distribute iron and zinc supplements through health programs."
-            )
-        })
-    elif avg_weight <= 16.0:
-        recs.append({
-            'category': '🟢 Weight — Normal',
-            'priority': 'LOW',
-            'detail': (
-                "Forecasted average weight is within normal range (12–16 kg). "
-                "Maintain feeding schedules and food diversity. "
-                "Provide continued nutrition education to caregivers."
-            )
-        })
+    # 1. Improvement rate level
+    if pct_improve >= 95.0:
+        rec_parts.append("Outstanding improvement rate. Maintain all current health programs.")
+    elif pct_improve >= 90.0:
+        rec_parts.append("Excellent improvement rate. Continue programs and document best practices.")
+    elif pct_improve >= 85.0:
+        rec_parts.append("Good improvement rate. Identify remaining gaps and target lagging subgroups.")
+    elif pct_improve >= 80.0:
+        rec_parts.append("Improvement rate is good but more effort is needed to reach higher targets.")
+    elif pct_improve >= 75.0:
+        rec_parts.append("Moderate improvement. Reinforce nutrition counseling and feeding programs.")
+    elif pct_improve >= 70.0:
+        rec_parts.append("Improvement is below expectation. Review program effectiveness and coverage.")
+    elif pct_improve >= 65.0:
+        rec_parts.append("Low improvement rate. Increase health worker visits and caregiver training.")
+    elif pct_improve >= 60.0:
+        rec_parts.append("Improvement rate is concerning. Launch targeted interventions immediately.")
+    elif pct_improve >= 50.0:
+        rec_parts.append("Critically low improvement. Mobilize multi-sector response with LGU and DOH.")
     else:
-        recs.append({
-            'category': '🟡 Weight — Above Average',
-            'priority': 'MODERATE',
-            'detail': (
-                "Forecasted average weight exceeds 16 kg. "
-                "While this may reflect growth, assess if linked to excess caloric intake. "
-                "Reduce high-fat and high-sugar food offerings in school and feeding programs."
-            )
-        })
+        rec_parts.append("Improvement rate is at emergency level. Declare nutrition crisis and activate all resources.")
 
-    # ── 4. Height Recommendations ─────────────────────────────────────────────
-    if avg_height < 82.0:
-        recs.append({
-            'category': '🔴 Height — Stunted Growth',
-            'priority': 'HIGH',
-            'detail': (
-                "Forecasted average height indicates stunting risk (< 82 cm). "
-                "Stunting is associated with chronic undernutrition. "
-                "Increase intake of calcium-rich foods: milk, yogurt, tofu, and small fish with bones. "
-                "Ensure adequate vitamin D through sunlight exposure and fortified foods. "
-                "Implement catch-up growth programs in partnership with DOH."
-            )
-        })
-    elif avg_height < 87.0:
-        recs.append({
-            'category': '🟡 Height — Below Expected',
-            'priority': 'MODERATE',
-            'detail': (
-                "Forecasted average height is slightly below expected growth curve (82–87 cm). "
-                "Prioritize zinc and calcium supplementation. "
-                "Serve fish, milk, and legumes regularly in feeding programs. "
-                "Monitor height growth quarterly using WHO growth standards."
-            )
-        })
-    elif avg_height <= 92.0:
-        recs.append({
-            'category': '🟢 Height — Normal Growth',
-            'priority': 'LOW',
-            'detail': (
-                "Forecasted average height is within normal range (87–92 cm). "
-                "Continue providing calcium and vitamin D-rich foods. "
-                "Encourage physical activity to support healthy bone development."
-            )
-        })
+    # 2. Trend-based recommendation
+    if change >= 3.0:
+        rec_parts.append("Strong upward trend — programs are highly effective this month.")
+    elif change >= 1.5:
+        rec_parts.append("Positive trend — keep reinforcing current strategies.")
+    elif change >= 0.5:
+        rec_parts.append("Slight improvement — maintain consistency in program delivery.")
+    elif change >= -0.5:
+        rec_parts.append("Flat trend — assess if interventions need adjustment.")
+    elif change >= -1.5:
+        rec_parts.append("Slight decline detected — investigate causes and strengthen outreach.")
+    elif change >= -3.0:
+        rec_parts.append("Declining trend — review and intensify all health interventions immediately.")
     else:
-        recs.append({
-            'category': '🟢 Height — Above Average Growth',
-            'priority': 'LOW',
-            'detail': (
-                "Forecasted average height is above expected range (> 92 cm). "
-                "This is a positive indicator of good nutrition and health. "
-                "Maintain current nutritional support and document as a best practice."
-            )
-        })
+        rec_parts.append("Sharp decline — urgent review required; convene emergency health meeting.")
 
-    # ── 5. Deworming Recommendations ─────────────────────────────────────────
-    if avg_dewormed < 50.0:
-        recs.append({
-            'category': '🔴 Deworming — Critically Low Coverage',
-            'priority': 'CRITICAL',
-            'detail': (
-                "Deworming coverage is critically low (< 50%). "
-                "Intestinal parasites severely impair nutrient absorption, causing malnutrition even with adequate food intake. "
-                "Launch an emergency deworming drive targeting all children aged 1–6. "
-                "Coordinate with DOH for albendazole or mebendazole distribution. "
-                "Pair deworming with hygiene education: handwashing, clean water, proper sanitation."
-            )
-        })
-    elif avg_dewormed < 65.0:
-        recs.append({
-            'category': '🟠 Deworming — Low Coverage',
-            'priority': 'HIGH',
-            'detail': (
-                "Deworming coverage is low (50–65%). "
-                "Significant portion of children remain at risk of parasitic infection. "
-                "Schedule community deworming every 6 months. "
-                "Provide caregiver education on symptoms of worm infestation."
-            )
-        })
-    elif avg_dewormed < 80.0:
-        recs.append({
-            'category': '🟡 Deworming — Moderate Coverage',
-            'priority': 'MODERATE',
-            'detail': (
-                "Deworming coverage is moderate (65–80%). "
-                "Increase outreach to reach uncovered children, especially in remote areas. "
-                "Use school and barangay health centers as deworming distribution points."
-            )
-        })
-    elif avg_dewormed < 90.0:
-        recs.append({
-            'category': '🟢 Deworming — Good Coverage',
-            'priority': 'LOW',
-            'detail': (
-                "Deworming coverage is good (80–90%). "
-                "Sustain current deworming schedules. "
-                "Target the remaining uncovered children through home visits."
-            )
-        })
+    # 3. BMI-based recommendation
+    if bmi < 12.0:
+        rec_parts.append("BMI critically low: provide therapeutic feeding with RUTF and refer to pediatrician.")
+    elif bmi < 13.5:
+        rec_parts.append("BMI underweight: increase caloric intake with energy-dense foods (banana, avocado, egg).")
+    elif bmi < 14.5:
+        rec_parts.append("BMI slightly low: ensure 5–6 balanced meals daily with protein and healthy fats.")
+    elif bmi <= 17.0:
+        rec_parts.append("BMI normal: maintain diverse diet with rice, fish, vegetables, and fruits.")
+    elif bmi <= 19.0:
+        rec_parts.append("BMI slightly high: reduce sugary snacks and encourage 60 min outdoor activity daily.")
     else:
-        recs.append({
-            'category': '🟢 Deworming — Excellent Coverage',
-            'priority': 'LOW',
-            'detail': (
-                "Deworming coverage exceeds 90%. Excellent community health practice. "
-                "Maintain the current program and document the approach as a model for other barangays."
-            )
-        })
+        rec_parts.append("BMI obese: strictly limit junk food; consult pediatric nutritionist for meal plan.")
 
-    # ── 6. Vitamins Recommendations ───────────────────────────────────────────
-    if avg_vitamins < 50.0:
-        recs.append({
-            'category': '🔴 Vitamins — Critically Low Intake',
-            'priority': 'CRITICAL',
-            'detail': (
-                "Vitamin supplementation coverage is critically low (< 50%). "
-                "Vitamin A deficiency increases risk of blindness and immune suppression. "
-                "Iron deficiency causes anemia, fatigue, and impaired learning. "
-                "Immediately distribute Vitamin A capsules (every 6 months) and iron syrup for children under 5. "
-                "Integrate vitamin distribution into barangay health days."
-            )
-        })
-    elif avg_vitamins < 65.0:
-        recs.append({
-            'category': '🟠 Vitamins — Low Intake',
-            'priority': 'HIGH',
-            'detail': (
-                "Vitamin supplementation coverage is low (50–65%). "
-                "Prioritize Vitamin A, iron, and iodine supplementation. "
-                "Train barangay health workers to identify and refer vitamin-deficient children. "
-                "Introduce vitamin-rich foods in feeding programs: malunggay, squash, papaya, liver."
-            )
-        })
-    elif avg_vitamins < 80.0:
-        recs.append({
-            'category': '🟡 Vitamins — Moderate Intake',
-            'priority': 'MODERATE',
-            'detail': (
-                "Vitamin intake coverage is moderate (65–80%). "
-                "Strengthen micronutrient supplementation programs. "
-                "Promote consumption of locally available vitamin-rich foods: camote tops, kangkong, ampalaya."
-            )
-        })
-    elif avg_vitamins < 90.0:
-        recs.append({
-            'category': '🟢 Vitamins — Good Intake',
-            'priority': 'LOW',
-            'detail': (
-                "Vitamin supplementation coverage is good (80–90%). "
-                "Continue promoting food diversification alongside supplementation. "
-                "Educate caregivers on food preparation methods that preserve vitamin content."
-            )
-        })
+    # 4. Weight-based recommendation
+    if weight < 10.0:
+        rec_parts.append("Weight critically low: coordinate emergency supplemental feeding with barangay health center.")
+    elif weight < 12.0:
+        rec_parts.append("Weight below average: enrich meals with iron-rich foods (liver, kangkong, fortified cereals).")
+    elif weight <= 16.0:
+        rec_parts.append("Weight normal: maintain feeding schedules and food diversity programs.")
     else:
-        recs.append({
-            'category': '🟢 Vitamins — Excellent Intake',
-            'priority': 'LOW',
-            'detail': (
-                "Vitamin supplementation coverage exceeds 90%. "
-                "Outstanding performance. Maintain distribution schedules and diversify food sources."
-            )
-        })
+        rec_parts.append("Weight above average: audit feeding program caloric content; reduce fried and processed foods.")
 
-    # ── 7. Immunization Recommendations ──────────────────────────────────────
-    if avg_immunize < 50.0:
-        recs.append({
-            'category': '🔴 Immunization — Critically Low',
-            'priority': 'CRITICAL',
-            'detail': (
-                "Immunization coverage is critically low (< 50%). "
-                "Children are highly vulnerable to vaccine-preventable diseases like measles, polio, and diphtheria. "
-                "Conduct emergency catch-up immunization campaigns immediately. "
-                "Coordinate with DOH for mobile vaccination teams to reach all barangays."
-            )
-        })
-    elif avg_immunize < 65.0:
-        recs.append({
-            'category': '🟠 Immunization — Low Coverage',
-            'priority': 'HIGH',
-            'detail': (
-                "Immunization coverage is low (50–65%). "
-                "Risk of disease outbreaks in the community remains high. "
-                "Schedule regular immunization days at barangay health centers. "
-                "Conduct house-to-house follow-up for missed children."
-            )
-        })
-    elif avg_immunize < 80.0:
-        recs.append({
-            'category': '🟡 Immunization — Moderate Coverage',
-            'priority': 'MODERATE',
-            'detail': (
-                "Immunization coverage is moderate (65–80%). "
-                "Identify and prioritize children who have missed doses. "
-                "Use reminder systems (text alerts, community health workers) for scheduled vaccinations."
-            )
-        })
-    elif avg_immunize < 95.0:
-        recs.append({
-            'category': '🟢 Immunization — Good Coverage',
-            'priority': 'LOW',
-            'detail': (
-                "Immunization coverage is good (80–95%). "
-                "Continue current immunization programs. "
-                "Aim for 95%+ herd immunity threshold by reaching remaining unimmunized children."
-            )
-        })
+    # 5. Height-based recommendation
+    if height < 82.0:
+        rec_parts.append("Height stunted: increase calcium (milk, tofu, small fish) and ensure vitamin D through sunlight.")
+    elif height < 87.0:
+        rec_parts.append("Height slightly low: prioritize zinc and calcium supplementation; serve fish and legumes regularly.")
+    elif height <= 92.0:
+        rec_parts.append("Height normal: continue calcium-rich foods and physical activity for healthy bone development.")
     else:
-        recs.append({
-            'category': '🟢 Immunization — Excellent Coverage',
-            'priority': 'LOW',
-            'detail': (
-                "Immunization coverage exceeds 95%. Herd immunity threshold achieved. "
-                "Sustain the program and share best practices with neighboring communities."
-            )
-        })
+        rec_parts.append("Height above average: positive growth indicator — maintain current nutritional support.")
 
-    # ── 8. Vaccination Recommendations ───────────────────────────────────────
-    if avg_vacc < 50.0:
-        recs.append({
-            'category': '🔴 Vaccination — Critically Low',
-            'priority': 'CRITICAL',
-            'detail': (
-                "Vaccination coverage is critically low (< 50%). "
-                "Community is at serious risk of outbreaks. "
-                "Immediately deploy vaccination outreach and partner with LGU for logistics support. "
-                "Prioritize BCG, DPT, OPV, MMR, and Hepatitis B vaccines for all children 0–6."
-            )
-        })
-    elif avg_vacc < 65.0:
-        recs.append({
-            'category': '🟠 Vaccination — Low Coverage',
-            'priority': 'HIGH',
-            'detail': (
-                "Vaccination coverage is low (50–65%). "
-                "Address vaccine hesitancy through community education campaigns. "
-                "Set up satellite vaccination posts in accessible community areas."
-            )
-        })
-    elif avg_vacc < 80.0:
-        recs.append({
-            'category': '🟡 Vaccination — Moderate Coverage',
-            'priority': 'MODERATE',
-            'detail': (
-                "Vaccination coverage is moderate (65–80%). "
-                "Track defaulters using health records and conduct follow-up visits. "
-                "Integrate vaccination schedules with feeding program visits for convenience."
-            )
-        })
-    elif avg_vacc < 95.0:
-        recs.append({
-            'category': '🟢 Vaccination — Good Coverage',
-            'priority': 'LOW',
-            'detail': (
-                "Vaccination coverage is good (80–95%). "
-                "Maintain current schedule and continue caregiver education. "
-                "Ensure cold chain integrity for vaccine storage."
-            )
-        })
+    # 6. Deworming-based recommendation
+    if dewormed < 50.0:
+        rec_parts.append("Deworming critically low: launch emergency deworming drive with albendazole distribution.")
+    elif dewormed < 65.0:
+        rec_parts.append("Deworming low: schedule community deworming every 6 months; educate on hygiene.")
+    elif dewormed < 80.0:
+        rec_parts.append("Deworming moderate: increase outreach to remote areas; use barangay health centers as hubs.")
+    elif dewormed < 90.0:
+        rec_parts.append("Deworming good: sustain schedules and reach remaining uncovered children via home visits.")
     else:
-        recs.append({
-            'category': '🟢 Vaccination — Excellent Coverage',
-            'priority': 'LOW',
-            'detail': (
-                "Vaccination coverage exceeds 95%. Exceptional community health achievement. "
-                "Document the strategies used and replicate in other areas."
-            )
-        })
+        rec_parts.append("Deworming excellent: maintain program and document approach as best practice.")
 
-    # ── 9. Overall Improvement Trend ─────────────────────────────────────────
-    if avg_improve >= 90.0 and trend_improve >= 0:
-        recs.append({
-            'category': '🌟 Overall Outlook — Excellent',
-            'priority': 'LOW',
-            'detail': (
-                "The overall child health improvement rate is forecasted at ≥ 90% and trending upward. "
-                "The community's health interventions are highly effective. "
-                "Continue current programs, document best practices, and consider scaling to other areas. "
-                "Celebrate progress with community stakeholders to maintain motivation."
-            )
-        })
-    elif avg_improve >= 75.0 and trend_improve >= 0:
-        recs.append({
-            'category': '🟢 Overall Outlook — Good',
-            'priority': 'LOW',
-            'detail': (
-                "Child health improvement rate is forecasted at 75–90% with an upward trend. "
-                "Programs are working well. Identify remaining gaps and target vulnerable subgroups. "
-                "Maintain consistent monthly monitoring and reporting."
-            )
-        })
-    elif avg_improve >= 75.0 and trend_improve < 0:
-        recs.append({
-            'category': '🟡 Overall Outlook — Good but Declining',
-            'priority': 'MODERATE',
-            'detail': (
-                "Child health improvement rate is currently good (75–90%) but trending downward. "
-                "Investigate causes of decline: reduced program funding, caregiver non-compliance, or seasonal factors. "
-                "Reinforce health worker training and strengthen community engagement activities."
-            )
-        })
-    elif avg_improve >= 60.0:
-        recs.append({
-            'category': '🟡 Overall Outlook — Moderate',
-            'priority': 'MODERATE',
-            'detail': (
-                "Child health improvement rate is moderate (60–75%). "
-                "Significant room for improvement remains. "
-                "Conduct a program audit to identify which interventions are underperforming. "
-                "Increase frequency of home visits and caregiver counseling sessions."
-            )
-        })
-    elif avg_improve >= 45.0:
-        recs.append({
-            'category': '🟠 Overall Outlook — Below Target',
-            'priority': 'HIGH',
-            'detail': (
-                "Child health improvement rate is below target (45–60%). "
-                "Programs need significant strengthening. "
-                "Convene a multi-sectoral meeting with LGU, DOH, DSWD, and DepEd to align interventions. "
-                "Prioritize the most vulnerable children using community health mapping."
-            )
-        })
+    # 7. Vitamins-based recommendation
+    if vitamins < 50.0:
+        rec_parts.append("Vitamins critically low: immediately distribute Vitamin A capsules and iron syrup; integrate into barangay health days.")
+    elif vitamins < 65.0:
+        rec_parts.append("Vitamins low: prioritize Vitamin A, iron, and iodine; train BHWs to identify deficient children.")
+    elif vitamins < 80.0:
+        rec_parts.append("Vitamins moderate: strengthen micronutrient programs; promote malunggay, squash, and papaya intake.")
+    elif vitamins < 90.0:
+        rec_parts.append("Vitamins good: continue promoting food diversification alongside supplementation.")
     else:
-        recs.append({
-            'category': '🔴 Overall Outlook — Critical',
-            'priority': 'CRITICAL',
-            'detail': (
-                "Child health improvement rate is critically low (< 45%). "
-                "Immediate and comprehensive action is required. "
-                "Declare a nutrition emergency if applicable and mobilize all available resources. "
-                "Implement emergency feeding, supplementation, and health interventions simultaneously. "
-                "Request support from national agencies: DOH, DSWD, DOST-FNRI."
-            )
-        })
+        rec_parts.append("Vitamins excellent: maintain distribution and educate caregivers on vitamin-preserving food preparation.")
 
-    # ── 10. Deworming + Vitamins Combined ─────────────────────────────────────
-    if avg_dewormed < 65.0 and avg_vitamins < 65.0:
-        recs.append({
-            'category': '⚠️ Combined Risk — Deworming & Vitamins Both Low',
-            'priority': 'CRITICAL',
-            'detail': (
-                "Both deworming and vitamin intake are forecasted to be low simultaneously. "
-                "This combination severely increases risk of severe malnutrition and stunting. "
-                "Launch an integrated health campaign combining deworming, vitamin distribution, and nutrition counseling in a single community event. "
-                "Partner with local schools and churches for maximum reach."
-            )
-        })
-    elif avg_dewormed < 80.0 and avg_vitamins < 80.0:
-        recs.append({
-            'category': '⚠️ Combined Risk — Deworming & Vitamins Moderate',
-            'priority': 'MODERATE',
-            'detail': (
-                "Both deworming and vitamin coverage are forecasted below 80%. "
-                "Combine deworming and vitamin distribution in a single health day to improve compliance and efficiency. "
-                "Provide caregivers with take-home educational materials on nutrition and hygiene."
-            )
-        })
+    # 8. Immunization-based recommendation
+    if immunize < 50.0:
+        rec_parts.append("Immunization critically low: deploy mobile vaccination teams for emergency catch-up campaign.")
+    elif immunize < 65.0:
+        rec_parts.append("Immunization low: schedule regular immunization days; conduct house-to-house follow-up.")
+    elif immunize < 80.0:
+        rec_parts.append("Immunization moderate: identify missed-dose children; use SMS reminders for scheduled vaccinations.")
+    elif immunize < 95.0:
+        rec_parts.append("Immunization good: target remaining unimmunized children to reach 95% herd immunity threshold.")
+    else:
+        rec_parts.append("Immunization excellent: sustain program and share best practices with neighboring communities.")
 
-    # ── 11. Immunization + Vaccination Combined ───────────────────────────────
-    if avg_immunize < 65.0 and avg_vacc < 65.0:
-        recs.append({
-            'category': '⚠️ Combined Risk — Immunization & Vaccination Both Low',
-            'priority': 'CRITICAL',
-            'detail': (
-                "Both immunization and vaccination coverage are critically low. "
-                "The community is at high risk for disease outbreaks. "
-                "Immediately coordinate with regional DOH for a catch-up vaccination drive. "
-                "Deploy mobile health units to reach isolated communities."
-            )
-        })
-    elif avg_immunize < 80.0 and avg_vacc < 80.0:
-        recs.append({
-            'category': '⚠️ Combined Risk — Immunization & Vaccination Moderate',
-            'priority': 'MODERATE',
-            'detail': (
-                "Both immunization and vaccination coverage are below 80%. "
-                "Combine immunization and vaccination schedules to reduce missed appointments. "
-                "Use SMS reminders and barangay announcements to notify caregivers."
-            )
-        })
+    # 9. Vaccination-based recommendation
+    if vacc < 50.0:
+        rec_parts.append("Vaccination critically low: deploy outreach teams; partner with LGU for BCG, DPT, OPV, MMR, HepB coverage.")
+    elif vacc < 65.0:
+        rec_parts.append("Vaccination low: address vaccine hesitancy through education; set up satellite vaccination posts.")
+    elif vacc < 80.0:
+        rec_parts.append("Vaccination moderate: track defaulters; integrate vaccination with feeding program visits.")
+    elif vacc < 95.0:
+        rec_parts.append("Vaccination good: maintain schedule and ensure cold chain integrity for vaccine storage.")
+    else:
+        rec_parts.append("Vaccination excellent: exceptional coverage — replicate strategies in other barangays.")
 
-    # ── 12. All Interventions Excellent ───────────────────────────────────────
-    if (avg_dewormed >= 90.0 and avg_vitamins >= 90.0 and
-            avg_immunize >= 90.0 and avg_vacc >= 90.0):
-        recs.append({
-            'category': '🏆 All Health Interventions — Excellent',
-            'priority': 'LOW',
-            'detail': (
-                "All four health interventions (deworming, vitamins, immunization, vaccination) "
-                "are forecasted at ≥ 90% coverage. "
-                "This is outstanding. The community demonstrates exemplary health program implementation. "
-                "Submit this barangay's health data as a model case study for regional replication."
-            )
-        })
+    # 10. Combined deworming + vitamins
+    if dewormed < 65.0 and vitamins < 65.0:
+        rec_parts.append("COMBINED RISK: Both deworming and vitamins are low — launch integrated health day combining both interventions.")
+    elif dewormed < 80.0 and vitamins < 80.0:
+        rec_parts.append("Combine deworming and vitamin distribution in one health day for efficiency and higher compliance.")
 
-    return recs, {
-        'avg_bmi': avg_bmi, 'avg_weight': avg_weight, 'avg_height': avg_height,
-        'avg_dewormed': avg_dewormed, 'avg_vitamins': avg_vitamins,
-        'avg_immunize': avg_immunize, 'avg_vacc': avg_vacc,
-        'avg_improve': avg_improve, 'trend_bmi': trend_bmi,
-        'trend_improve': trend_improve
-    }
+    # 11. Combined immunization + vaccination
+    if immunize < 65.0 and vacc < 65.0:
+        rec_parts.append("COMBINED RISK: Both immunization and vaccination are critically low — request regional DOH mobile unit support.")
+    elif immunize < 80.0 and vacc < 80.0:
+        rec_parts.append("Combine immunization and vaccination schedules to reduce missed appointments and caregiver burden.")
+
+    # 12. All excellent
+    if dewormed >= 90.0 and vitamins >= 90.0 and immunize >= 90.0 and vacc >= 90.0:
+        rec_parts.append("All interventions at 90%+ — model barangay performance. Submit as case study for regional replication.")
+
+    # Join all parts
+    recommendation = " | ".join(rec_parts)
+    return status, recommendation
 
 
 # ── Load model ────────────────────────────────────────────────────────────────
@@ -686,9 +311,9 @@ final_imp = forecast_df[imp_col].iloc[-1]
 delta_imp = final_imp - cur_imp
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("📅 Forecast Horizon",           f"{n_months} months")
-c2.metric("📌 Current Improvement Rate",   f"{cur_imp:.1f}%")
-c3.metric("🔮 Month +1 Forecast",          f"{mo1_imp:.1f}%",  delta=f"{mo1_imp - cur_imp:+.1f}%")
+c1.metric("📅 Forecast Horizon",            f"{n_months} months")
+c2.metric("📌 Current Improvement Rate",    f"{cur_imp:.1f}%")
+c3.metric("🔮 Month +1 Forecast",           f"{mo1_imp:.1f}%", delta=f"{mo1_imp - cur_imp:+.1f}%")
 c4.metric(f"🏁 Month +{n_months} Forecast", f"{final_imp:.1f}%", delta=f"{delta_imp:+.1f}%")
 
 st.divider()
@@ -804,73 +429,76 @@ with tab3:
     st.pyplot(fig2)
     plt.close()
 
-    st.subheader("Month-by-Month Breakdown")
-    imp_rows = []
-    prev = history[col].iloc[-1]
-    for lbl, val in zip(future_labels, fc_y):
-        chg   = val - prev
-        arrow = '↑' if chg > 0.01 else ('↓' if chg < -0.01 else '→')
-        imp_rows.append({
-            'Month': lbl,
-            '% Predicted to Improve': val,
-            'Change': round(chg, 2),
-            'Trend':  arrow
-        })
-        prev = val
-    st.dataframe(pd.DataFrame(imp_rows), use_container_width=True, hide_index=True)
-
 # ── TAB 4: Nutrition Recommendations ─────────────────────────────────────────
 with tab4:
-    st.subheader("💡 Nutrition & Health Recommendations")
+    st.subheader("💡 Month-by-Month Nutrition Recommendations")
     st.markdown(
-        f"Based on **{n_months}-month ARIMA forecast** averages. "
-        "Recommendations are generated automatically using forecasted health indicator values."
+        "Each row shows the forecasted **improvement rate**, its **status**, "
+        "and a **tailored recommendation** based on all health indicators for that month."
     )
 
-    # Only generate recommendations for 12-month forecast for accuracy
-    rec_df, stats = get_recommendations(
-        forecast_df if n_months <= 12 else forecast_df.head(12)
-    )
+    # Build month-by-month recommendation table
+    rows = []
+    prev_improve = history['Pct_Improved_Next_Month'].iloc[-1]
 
-    # Show forecast averages used
-    with st.expander("📊 Forecasted Averages Used for Recommendations", expanded=False):
-        avg_data = {
-            'Indicator': [
-                'Average BMI', 'Average Weight (kg)', 'Average Height (cm)',
-                '% Dewormed', '% Vitamins Intake',
-                '% Immunization', '% Vaccination', '% Predicted to Improve'
-            ],
-            'Forecasted Average': [
-                round(stats['avg_bmi'], 2), round(stats['avg_weight'], 2),
-                round(stats['avg_height'], 2), round(stats['avg_dewormed'], 2),
-                round(stats['avg_vitamins'], 2), round(stats['avg_immunize'], 2),
-                round(stats['avg_vacc'], 2), round(stats['avg_improve'], 2)
-            ]
-        }
-        st.dataframe(pd.DataFrame(avg_data), use_container_width=True, hide_index=True)
+    for _, row in forecast_df.iterrows():
+        month_no    = int(row['Month_No'])
+        month_label = row['Month_Label']
+        pct_improve = row['Pct_Improved_Next_Month']
+        bmi         = row['Avg_BMI']
+        weight      = row['Avg_Weight_kg']
+        height      = row['Avg_Height_cm']
+        dewormed    = row['Pct_Dewormed']
+        vitamins    = row['Pct_Vitamins_Intake']
+        immunize    = row['Pct_Immunization']
+        vacc        = row['Pct_Vaccination']
 
-    # Priority filter
-    priority_filter = st.selectbox(
-        "Filter by Priority",
-        options=['All', 'CRITICAL', 'HIGH', 'MODERATE', 'LOW'],
-        index=0
-    )
+        status, recommendation = get_status_and_recommendation(
+            month_no, month_label, pct_improve,
+            bmi, weight, height,
+            dewormed, vitamins, immunize, vacc,
+            prev_improve
+        )
 
-    priority_colors = {
-        'CRITICAL': '🔴',
-        'HIGH':     '🟠',
-        'MODERATE': '🟡',
-        'LOW':      '🟢',
-    }
+        rows.append({
+            'Month No.':        month_no,
+            'Month':            month_label,
+            '% Improvement':    pct_improve,
+            'Status':           status,
+            'Recommendation':   recommendation
+        })
 
-    filtered = rec_df if priority_filter == 'All' else [r for r in rec_df if r['priority'] == priority_filter]
+        prev_improve = pct_improve
 
-    if not filtered:
-        st.info("No recommendations match the selected priority filter.")
+    rec_df = pd.DataFrame(rows)
+
+    # Filter by status
+    status_options = ['All'] + sorted(rec_df['Status'].unique().tolist())
+    status_filter  = st.selectbox("Filter by Status", options=status_options, index=0)
+
+    if status_filter != 'All':
+        display_rec = rec_df[rec_df['Status'] == status_filter]
     else:
-        st.markdown(f"**Showing {len(filtered)} recommendation(s)**")
-        st.divider()
-        for rec in filtered:
-            badge = priority_colors.get(rec['priority'], '')
-            with st.expander(f"{badge} [{rec['priority']}] {rec['category']}", expanded=(rec['priority'] in ['CRITICAL', 'HIGH'])):
-                st.write(rec['detail'])
+        display_rec = rec_df
+
+    st.dataframe(
+        display_rec,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            'Month No.':      st.column_config.NumberColumn('Month No.', width='small'),
+            'Month':          st.column_config.TextColumn('Month', width='small'),
+            '% Improvement':  st.column_config.NumberColumn('% Improvement', format="%.2f%%", width='medium'),
+            'Status':         st.column_config.TextColumn('Status', width='medium'),
+            'Recommendation': st.column_config.TextColumn('Recommendation', width='large'),
+        }
+    )
+
+    # Download
+    csv_rec = rec_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="⬇️ Download Recommendations as CSV",
+        data=csv_rec,
+        file_name=f"recommendations_{n_months}months.csv",
+        mime="text/csv"
+    )
